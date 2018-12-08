@@ -4,7 +4,7 @@ The development environment creates 3 containers:
 
 #### Couchbase Server/Cluster
 
-The main server node with a cluster initialized.  Enabled services are `datam index and query`.
+The main server node with a cluster initialized.  Enabled services are `data, index and query`.
 
 #### Couchbase Server/Node
 
@@ -13,6 +13,9 @@ A secondary server node added to the cluster.  Enabled services are `fts, eventi
 #### Sync Gateway
 
 A sync gateway to perform services for clients
+
+
+#### Using
 
 Hopefully can just run `./control.sh` in the folder.  Report an issue if not.
 
