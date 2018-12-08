@@ -1,0 +1,21 @@
+{
+  "interface":":4984",
+  "log": ["sync"],
+  "databases": {
+    "demobucket": {
+      "import_docs": "continuous",
+      "unsupported": {
+        "enable_extended_attributes": true,
+        "replicator_2":true
+      },
+      "bucket":"demobucket",
+      "server": "http://cb-server:8091",
+      "enable_shared_bucket_access":true,
+      "username": "admin",
+      "password": "password",
+      "users":{
+          "admin": {"password": "password", "admin_channels": ["*"]}
+      }
+   }
+}
+}	
