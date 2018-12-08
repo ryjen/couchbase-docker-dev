@@ -20,7 +20,6 @@ RBAC_PASSWORD="password"
 
 function info() {
   echo $@
-
   sync
 }
 
@@ -52,18 +51,34 @@ function run_cmd() {
   fi
 }
 
+function silence() {
+  $@ > /dev/null 2>&1
+}
+
+function container_exists() {
+  local container=$1
+
+  local exists=$(docker ps -q -f name=$container 2>/dev/null)
+
+  if [ -z "$exists" ]; then
+    return 1
+  fi
+
+  return 0
+}
+
 function build_server_image() {
 
   info "Building server image"
 
-  docker build -t $SERVER_IMAGE server
+  exec_cmd docker build -t $SERVER_IMAGE server
 }
 
 function setup_docker() {
-  
+
   info "Creating network"
 
-  exec_cmd docker network create -d bridge $NETWORK_NAME
+  silence docker network create -d bridge $NETWORK_NAME
 
   info "Building couchbase server image"
 
@@ -78,43 +93,44 @@ function start_server() {
 
   info "Starting couchbase cluster server"
 
-  $(docker ps -q -f name=${SERVER_CONTAINER})
+  container_exists $SERVER_CONTAINER
 
-  if [[ $? -ne 0 ]]; then
+  if [[ $? -eq 0 ]]; then
     run_cmd docker start $SERVER_CONTAINER
-  else 
-    run_cmd docker run -d --name $SERVER_CONTAINER --network ${NETWORK_NAME} -p "8091-8096:8091-8096" -p 11210-11211:11210-11211 -e COUCHBASE_ADMINISTRATOR_USERNAME=${ADMIN_USERNAME} -e COUCHBASE_ADMINISTRATOR_PASSWORD=${ADMIN_PASSWORD} -e COUCHBASE_BUCKET=${BUCKET_NAME} -e COUCHBASE_RBAC_USERNAME=${RBAC_USERNAME} -e COUCHBASE_RBAC_PASSWORD=${RBAC_PASSWORD} -e COUCHBASE_RBAC_NAME="admin-user" -e CLUSTER_NAME=demo-cluster -e COUCHBASE_SERVICES="data,index,query" $SERVER_IMAGE
+    return
   fi
+
+  run_cmd docker run -d --name $SERVER_CONTAINER --network ${NETWORK_NAME} -p "8091-8096:8091-8096" -p 11210-11211:11210-11211 -e COUCHBASE_ADMINISTRATOR_USERNAME=${ADMIN_USERNAME} -e COUCHBASE_ADMINISTRATOR_PASSWORD=${ADMIN_PASSWORD} -e COUCHBASE_BUCKET=${BUCKET_NAME} -e COUCHBASE_RBAC_USERNAME=${RBAC_USERNAME} -e COUCHBASE_RBAC_PASSWORD=${RBAC_PASSWORD} -e COUCHBASE_RBAC_NAME="admin-user" -e CLUSTER_NAME=demo-cluster -e COUCHBASE_SERVICES="data,index,query" $SERVER_IMAGE
 }
 
 function add_nodes() {
 
   info "Starting couchbase server node"
 
-  $(docker ps -q -f name=${SERVER_NODE})
+  container_exists $SERVER_NODE
 
-  if [[ $? -ne 0 ]]; then
+  if [[ $? -eq 0 ]]; then
     run_cmd docker start $SERVER_NODE
-  else
-    run_cmd docker run -d --name $SERVER_NODE --network ${NETWORK_NAME} $NODE_IMAGE
- 
-    info "Waiting for couchbase server node to complete setup"
-
-    sleep 10
-
-    info "Adding server node to cluster"
-
-    local NODE_IP=$(docker inspect --format '{{ .NetworkSettings.Networks.cbnetwork.IPAddress }}' $SERVER_NODE)
-
-    run_cmd docker exec $SERVER_CONTAINER couchbase-cli server-add -c ${SERVER_CONTAINER} -u ${RBAC_USERNAME} -p ${RBAC_PASSWORD} --server-add $NODE_IP --server-add-username $RBAC_USERNAME --server-add-password $RBAC_PASSWORD --services fts,eventing,analytics
-
-    sleep 5
-
-    info "Rebalancing cluster"
-
-    run_cmd docker exec $SERVER_CONTAINER couchbase-cli rebalance -c $SERVER_CONTAINER -u $RBAC_USERNAME -p $RBAC_PASSWORD
-
+    return
   fi
+
+  run_cmd docker run -d --name $SERVER_NODE --network ${NETWORK_NAME} -p :"9091-9096:8091-8096" $NODE_IMAGE
+
+  info "Waiting for node to complete setup"
+
+  sleep 15
+
+  info "Adding node to cluster"
+
+  local NODE_IP=$(docker inspect --format '{{ .NetworkSettings.Networks.cbnetwork.IPAddress }}' $SERVER_NODE)
+
+  run_cmd docker exec $SERVER_CONTAINER couchbase-cli server-add -c ${SERVER_CONTAINER} -u ${RBAC_USERNAME} -p ${RBAC_PASSWORD} --server-add $NODE_IP --server-add-username $RBAC_USERNAME --server-add-password $RBAC_PASSWORD --services fts,eventing,analytics
+
+  sleep 5
+
+  info "Rebalancing cluster"
+
+  run_cmd docker exec $SERVER_CONTAINER couchbase-cli rebalance -c $SERVER_CONTAINER -u $RBAC_USERNAME -p $RBAC_PASSWORD
 
 }
 
@@ -122,7 +138,7 @@ function wait_server() {
 
   local output=$(docker logs ${SERVER_CONTAINER} 2> /dev/null)
 
-  info "Waiting for couchbase cluster to complete setup"
+  info "Waiting for cluster to complete setup"
 
   while [ true ]; do
 
@@ -148,26 +164,27 @@ function start_docker() {
 
   info "Starting sync gateway container"
 
-  $(docker ps -q -f name=${GATEWAY_CONTAINER})
-  
-  if [[ $? -ne 0 ]]; then
+  container_exists $GATEWAY_CONTAINER
+
+  if [[ $? -eq 0 ]]; then
     run_cmd docker start $GATEWAY_CONTAINER
-  else
-    run_cmd docker run -p 4984-4985:4984-4985 --network $NETWORK_NAME --name $GATEWAY_CONTAINER -d -v `pwd`/sync_gateway:/etc/sync_gateway $GATEWAY_IMAGE -adminInterface :4985 /etc/sync_gateway/sync_gateway.json
+    return
   fi
+
+    run_cmd docker run -p 4984-4985:4984-4985 --network $NETWORK_NAME --name $GATEWAY_CONTAINER -d -v `pwd`/sync_gateway:/etc/sync_gateway $GATEWAY_IMAGE -adminInterface :4985 /etc/sync_gateway/sync_gateway.json
 }
 
 function stop_docker() {
 
   info "Stopping sync gateway container"
 
-  run_cmd docker stop $GATEWAY_CONTAINER
+  silence docker stop $GATEWAY_CONTAINER
 
   info "Stopping couchbase server containers"
 
-  run_cmd docker stop $SERVER_CONTAINER
+  silence docker stop $SERVER_CONTAINER
 
-  run_cmd docker stop $SERVER_NODE
+  silence docker stop $SERVER_NODE
 }
 
 function clean_docker() {
@@ -176,13 +193,13 @@ function clean_docker() {
 
   info "Removing sync gateway container"
 
-  run_cmd docker rm $GATEWAY_CONTAINER
+  silence docker rm $GATEWAY_CONTAINER
 
   info "Removing couchbase server containers"
 
-  run_cmd docker rm $SERVER_CONTAINER
+  silence docker rm $SERVER_CONTAINER
 
-  run_cmd docker rm $SERVER_NODE
+  silence docker rm $SERVER_NODE
 }
 
 function verify_docker() {
@@ -207,7 +224,7 @@ case "${1}" in
     clean_docker;
     ;;
   *)
-    echo "Syntax: $0 setup|start|verify|stop|clean"
+    echo "Syntax: $(basename $0) setup|start|verify|stop|clean"
     exit 1
     ;;
 esac

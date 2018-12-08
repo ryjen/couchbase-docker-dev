@@ -19,7 +19,17 @@ A sync gateway to perform services for clients
 
 Hopefully can just run `./control.sh` in the folder.  Report an issue if not.
 
-Once the containers boot, open `http://localhost:8091` and use the credentials `Administrator:password`
+Once the containers boot, the admin interfaces are:
+
+**Cluster server**: `http://localhost:8091` 
+
+**Node server**: `http://localhost:9091`
+
+The default admin credentials are `Administrator:password`
+
+The default rbac credentials are `admin:password`
+
+
 
 
 
