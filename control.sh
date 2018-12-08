@@ -56,7 +56,7 @@ function build_server_image() {
 
   info "Building server image"
 
-  docker build -t $SERVER_IMAGE -f Dockerfile.server .
+  docker build -t $SERVER_IMAGE server
 }
 
 function setup_docker() {
