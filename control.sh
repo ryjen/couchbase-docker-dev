@@ -58,7 +58,7 @@ function silence() {
 function container_exists() {
   local container=$1
 
-  local exists=$(docker ps -q -f name=$container 2>/dev/null)
+  local exists=$(docker ps -a -q -f name=$container 2>/dev/null)
 
   if [ -z "$exists" ]; then
     return 1
