@@ -1,24 +1,26 @@
 
 # TL;DR
 
-I haven't figured out kubernetes yet... besides to heavy for dev imo.
+Haven't figured out kubernetes yet... besides to heavy for dev, imo.
 
-The development environment creates 3 containers:
+## Whats in the box
 
-#### Couchbase Server/Cluster
+A development environment with 3 containers:
+
+### Couchbase Server/Cluster
 
 The main server node with a cluster initialized.  Enabled services are `data, index and query`.
 
-#### Couchbase Server/Node
+### Couchbase Server/Node
 
 A secondary server node added to the cluster.  Enabled services are `fts, eventing and analytics`.
 
-#### Sync Gateway
+### Sync Gateway
 
 A sync gateway to perform services for clients
 
 
-#### Using
+## Using
 
 Hopefully can just run `./control.sh` in the folder.  Report an issue if not.
 
