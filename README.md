@@ -1,4 +1,7 @@
 
+# TL;DR
+
+I haven't figured out kubernetes yet... besides to heavy for dev imo.
 
 The development environment creates 3 containers:
 
